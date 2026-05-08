@@ -28,8 +28,8 @@ const BASE_SIDE_TO_LANE = {
 };
 
 const KEYS = {
-  f: LANES.LEFT,
-  j: LANES.RIGHT,
+  KeyF: LANES.LEFT,
+  KeyJ: LANES.RIGHT,
 };
 
 const RHYTHM_PAIRS = [
@@ -673,8 +673,7 @@ function handleKeyDown(e) {
 
   if (!isPlaying.value || isDemoMode.value) return;
 
-  const key = e.key.toLowerCase();
-  const lane = KEYS[key];
+  const lane = KEYS[e.code];
   if (!lane) return;
 
   playClick(lane === BASE_SIDE_TO_LANE[baseSide.value]);
