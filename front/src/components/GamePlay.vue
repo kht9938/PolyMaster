@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 
+import { trackEvent } from '../lib/analytics';
 import { createScore } from '../lib/scores';
 
 const emit = defineEmits(['exit']);
@@ -273,6 +274,12 @@ function clampBpm(value) {
 }
 
 function startGame() {
+  trackEvent(resultVisible.value ? 'result_retry' : 'game_start', {
+    ...getGameAnalyticsParams(),
+    previous_score: resultVisible.value ? score.value : undefined,
+    previous_full_combo: resultVisible.value ? isFullCombo.value : undefined,
+  });
+
   isPlaying.value = true;
   startTime.value = getNow();
   currentTime.value = 0;
@@ -595,6 +602,8 @@ function finishGame() {
   isPlaying.value = false;
   resultPending.value = true;
 
+  trackEvent('game_complete', getResultAnalyticsParams());
+
   if (animationId) {
     cancelAnimationFrame(animationId);
     animationId = null;
@@ -635,8 +644,16 @@ async function submitScore() {
     nickname.value = playerName;
     hasSubmittedScore.value = true;
     scoreSubmitStatus.value = '점수가 등록되었습니다.';
+    trackEvent('score_submit', {
+      ...getResultAnalyticsParams(),
+      status: 'success',
+    });
   } catch (error) {
     scoreSubmitError.value = error.message;
+    trackEvent('score_submit', {
+      ...getResultAnalyticsParams(),
+      status: 'fail',
+    });
   } finally {
     isSubmittingScore.value = false;
   }
@@ -720,6 +737,58 @@ function applyJudge(note, judge, point, timingDiff = 0) {
   flashLane(note.lane);
 }
 
+function handleExit() {
+  if (isPlaying.value) {
+    trackEvent('game_exit', {
+      ...getResultAnalyticsParams(),
+      elapsed_sec: Math.round(currentTime.value),
+      progress_percent: getProgressPercent(),
+    });
+  }
+
+  emit('exit');
+}
+
+function getPatternName() {
+  if (props.rhythm?.name) return props.rhythm.name;
+  if (isChallengePatternMode.value && !currentSection.value) {
+    return 'challenge_sequence';
+  }
+  if (!currentSection.value) return undefined;
+
+  return `${currentSection.value.leftCount}:${currentSection.value.rightCount}`;
+}
+
+function getGameAnalyticsParams() {
+  return {
+    mode: props.mode,
+    pattern: getPatternName(),
+    bpm: selectedBpm.value,
+    speed: Number(displayedSpeed.value.toFixed(2)),
+    base_side: props.rhythm?.baseSide ?? currentSection.value?.baseSide,
+  };
+}
+
+function getResultAnalyticsParams() {
+  return {
+    ...getGameAnalyticsParams(),
+    score: score.value,
+    max_combo: maxCombo.value,
+    perfect: judgeCounts.value.PERFECT,
+    good: judgeCounts.value.GOOD,
+    bad: judgeCounts.value.BAD,
+    miss: judgeCounts.value.MISS,
+    full_combo: judgeCounts.value.MISS === 0,
+  };
+}
+
+function getProgressPercent() {
+  const lastNoteTime = notes.value.at(-1)?.hitTime ?? 0;
+  if (lastNoteTime <= 0) return 0;
+
+  return Math.min(100, Math.round((currentTime.value / lastNoteTime) * 100));
+}
+
 function updateTimingFeedback(lane, judge, timingDiff) {
   if (judge === 'PERFECT') {
     timingFeedback.value = null;
@@ -783,7 +852,7 @@ onUnmounted(() => {
 <template>
   <div class="game">
     <div class="top">
-      <button class="menu-btn" @click="emit('exit')">← MENU</button>
+      <button class="menu-btn" @click="handleExit">← MENU</button>
 
       <div class="count" :class="{ red: leftIsBase, blue: !leftIsBase }">
         {{ leftCount }}

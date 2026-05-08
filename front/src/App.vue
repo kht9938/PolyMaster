@@ -6,6 +6,7 @@ import PracticeSelect from './components/PracticeSelect.vue';
 import GamePlay from './components/GamePlay.vue';
 import RankingBoard from './components/RankingBoard.vue';
 import HelpPage from './components/HelpPage.vue';
+import { trackEvent } from './lib/analytics';
 
 const SCENES = {
   MAIN: 'main',
@@ -25,29 +26,44 @@ function goMain() {
 }
 
 function goPractice() {
+  trackEvent('menu_select', { target: 'practice' });
   currentScene.value = SCENES.PRACTICE_SELECT;
 }
 
 function startPractice(rhythm) {
+  trackEvent('practice_pattern_select', {
+    pattern: rhythm.name,
+    base_side: rhythm.baseSide,
+    bpm: rhythm.bpm,
+    left_count: rhythm.leftCount,
+    right_count: rhythm.rightCount,
+  });
+
   selectedRhythm.value = rhythm;
   currentScene.value = SCENES.PRACTICE_GAME;
 }
 
 function startChallenge() {
+  trackEvent('menu_select', { target: 'challenge' });
   selectedRhythm.value = null;
   currentScene.value = SCENES.CHALLENGE_GAME;
 }
 
 function startDemo() {
+  trackEvent('menu_select', { target: 'demo' });
   selectedRhythm.value = null;
   currentScene.value = SCENES.DEMO_GAME;
 }
 
 function openRanking() {
+  trackEvent('menu_select', { target: 'ranking' });
+  trackEvent('ranking_view', { source: currentScene.value });
   currentScene.value = SCENES.RANKING;
 }
 
 function openHelp() {
+  trackEvent('menu_select', { target: 'help' });
+  trackEvent('help_view', { source: currentScene.value });
   currentScene.value = SCENES.HELP;
 }
 </script>
